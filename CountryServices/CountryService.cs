@@ -54,8 +54,7 @@ namespace CountryServices
             string json = httpClient.GetStringAsync(apiUrl).Result;
             
             LocalCurrency currency = JsonSerializer.Deserialize<LocalCurrency>(json);
-
-            // Cache the currency
+            
             currencyCache[alpha2Or3Code] = new WeakReference<LocalCurrency>(currency);
 
             return currency;
@@ -78,19 +77,12 @@ namespace CountryServices
                 throw new ArgumentException("Invalid country code.");
             }
 
-            using (var httpClient = new HttpClient())
-            {
-                var apiUrl = $"{serviceUrl}/currency/{alpha2Or3Code}";
-                var response = await httpClient.GetStringAsync(apiUrl, token);
+            string apiUrl = $"{serviceUrl}/alpha/{alpha2Or3Code}";
+            string json = await httpClient.GetStringAsync(apiUrl, token);
+            
+            LocalCurrency currency = JsonSerializer.Deserialize<LocalCurrency>(json);
 
-                if (!string.IsNullOrWhiteSpace(response))
-                {
-                    return JsonSerializer.Deserialize<LocalCurrency>(response)
-                           ?? throw new InvalidOperationException("Failed to retrieve local currency information.");
-                }
-
-                throw new InvalidOperationException("Failed to retrieve local currency information.");
-            }
+            return currency;
         }
 
         /// <summary>
@@ -106,19 +98,12 @@ namespace CountryServices
                 throw new ArgumentException("Capital name is invalid.");
             }
 
-            using (var httpClient = new HttpClient())
-            {
-                var apiUrl = $"{serviceUrl}/capital/{capital}";
-                var response = httpClient.GetStringAsync(apiUrl).GetAwaiter().GetResult();
+            string apiUrl = $"{serviceUrl}/capital/{capital}";
+            string json = httpClient.GetStringAsync(apiUrl).Result;
+            
+            CountryInfo countryInfo = JsonSerializer.Deserialize<CountryInfo>(json);
 
-                if (!string.IsNullOrWhiteSpace(response))
-                {
-                    return JsonSerializer.Deserialize<CountryInfo>(response)
-                           ?? throw new InvalidOperationException("Failed to retrieve country information by capital.");
-                }
-
-                throw new InvalidOperationException("Failed to retrieve country information by capital.");
-            }
+            return countryInfo;
         }
 
         /// <summary>
@@ -135,19 +120,12 @@ namespace CountryServices
                 throw new ArgumentException("Capital name is invalid.");
             }
 
-            using (var httpClient = new HttpClient())
-            {
-                var apiUrl = $"{serviceUrl}/capital/{capital}";
-                var response = await httpClient.GetStringAsync(apiUrl, token);
+            string apiUrl = $"{serviceUrl}/capital/{capital}";
+            string json = await httpClient.GetStringAsync(apiUrl, token);
+            
+            CountryInfo countryInfo = JsonSerializer.Deserialize<CountryInfo>(json);
 
-                if (!string.IsNullOrWhiteSpace(response))
-                {
-                    return JsonSerializer.Deserialize<CountryInfo>(response)
-                           ?? throw new InvalidOperationException("Failed to retrieve country information by capital.");
-                }
-
-                throw new InvalidOperationException("Failed to retrieve country information by capital.");
-            }
+            return countryInfo;
         }
     }
 }
