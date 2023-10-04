@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 
 namespace CountryServices
 {
+    
+    
     /// <summary>
     /// Provides information about country local currency from RESTful API.
     /// <see><cref>https://restcountries.com/#api-endpoints-v2</cref></see>.
@@ -29,6 +31,8 @@ namespace CountryServices
             this.serviceUrl = serviceUrl;
             this.httpClient = new HttpClient();
         }
+        
+        
 
         /// <summary>
         /// Gets information about currency by country code synchronously.
@@ -51,25 +55,33 @@ namespace CountryServices
                 string apiUrl = $"{serviceUrl}/alpha/{Uri.EscapeDataString(alpha2Or3Code)}";
                 string json = httpClient.GetStringAsync(apiUrl).Result;
 
-                JsonDocument doc = JsonDocument.Parse(json);
+                var currencyInfo = JsonSerializer.Deserialize<JsonElement>(json);
 
-                foreach (var element in doc.RootElement.EnumerateArray())
+                if (currencyInfo.ValueKind != JsonValueKind.Object)
                 {
-                    string countryName = element.GetProperty("name").GetString();
-                    string currencyCode = element.GetProperty("currencies").EnumerateArray().First().GetProperty("code").GetString();
-                    string currencySymbol = element.GetProperty("currencies").EnumerateArray().First().GetProperty("symbol").GetString();
-
-                    LocalCurrency localCurrency = new LocalCurrency
-                    {
-                        CountryName = countryName,
-                        CurrencyCode = currencyCode,
-                        CurrencySymbol = currencySymbol
-                    };
-
-                    return localCurrency;
+                    throw new JsonException("No valid currency information found in the JSON response.");
                 }
 
-                throw new JsonException("No valid currency information found in the JSON array.");
+                string countryName = currencyInfo.GetProperty("name").GetString();
+
+                var currenciesArray = currencyInfo.GetProperty("currencies");
+
+                if (currenciesArray.ValueKind != JsonValueKind.Array || currenciesArray.GetArrayLength() == 0)
+                {
+                    throw new JsonException("No valid currency information found in the JSON response.");
+                }
+
+                var firstCurrency = currenciesArray.EnumerateArray().First();
+
+                string currencyCode = firstCurrency.GetProperty("code").GetString();
+                string currencySymbol = firstCurrency.GetProperty("symbol").GetString();
+
+                return new LocalCurrency
+                {
+                    CountryName = countryName,
+                    CurrencyCode = currencyCode,
+                    CurrencySymbol = currencySymbol
+                };
             }
             catch (HttpRequestException ex)
             {
@@ -109,25 +121,33 @@ namespace CountryServices
                 string apiUrl = $"{serviceUrl}/alpha/{Uri.EscapeDataString(alpha2Or3Code)}";
                 string json = await httpClient.GetStringAsync(apiUrl, token);
 
-                JsonDocument doc = JsonDocument.Parse(json);
+                var currencyInfo = JsonSerializer.Deserialize<JsonElement>(json);
 
-                foreach (var element in doc.RootElement.EnumerateArray())
+                if (currencyInfo.ValueKind != JsonValueKind.Object)
                 {
-                    string countryName = element.GetProperty("name").GetString();
-                    string currencyCode = element.GetProperty("currencies").EnumerateArray().First().GetProperty("code").GetString();
-                    string currencySymbol = element.GetProperty("currencies").EnumerateArray().First().GetProperty("symbol").GetString();
-
-                    LocalCurrency localCurrency = new LocalCurrency
-                    {
-                        CountryName = countryName,
-                        CurrencyCode = currencyCode,
-                        CurrencySymbol = currencySymbol
-                    };
-
-                    return localCurrency;
+                    throw new JsonException("No valid currency information found in the JSON response.");
                 }
 
-                throw new JsonException("No valid currency information found in the JSON array.");
+                string countryName = currencyInfo.GetProperty("name").GetString();
+
+                var currenciesArray = currencyInfo.GetProperty("currencies");
+
+                if (currenciesArray.ValueKind != JsonValueKind.Array || currenciesArray.GetArrayLength() == 0)
+                {
+                    throw new JsonException("No valid currency information found in the JSON response.");
+                }
+
+                var firstCurrency = currenciesArray.EnumerateArray().First();
+
+                string currencyCode = firstCurrency.GetProperty("code").GetString();
+                string currencySymbol = firstCurrency.GetProperty("symbol").GetString();
+
+                return new LocalCurrency
+                {
+                    CountryName = countryName,
+                    CurrencyCode = currencyCode,
+                    CurrencySymbol = currencySymbol
+                };
             }
             catch (HttpRequestException ex)
             {
@@ -253,6 +273,18 @@ namespace CountryServices
             catch (Exception ex)
             {
                 throw new ApplicationException("An error occurred while retrieving country info.", ex);
+            }
+        }
+        
+        private class CurrencyInfo
+        {
+            public string Name { get; set; }
+            public List<Currency> Currencies { get; set; }
+
+            public class Currency
+            {
+                public string Code { get; set; }
+                public string Symbol { get; set; }
             }
         }
     }
