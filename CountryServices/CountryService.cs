@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -12,8 +14,9 @@ namespace CountryServices
     public class CountryService : ICountryService
     {
         private readonly string serviceUrl;
-        private readonly Dictionary<string, WeakReference<LocalCurrency>> currencyCountries = new ();
-
+        private readonly HttpClient httpClient;
+        private readonly Dictionary<string, WeakReference<LocalCurrency>> currencyCache = new Dictionary<string, WeakReference<LocalCurrency>>();
+        
         /// <summary>
         /// Initializes a new instance of the <see cref="CountryService"/> class with specified <see cref="serviceUrl"/>.
         /// </summary>
@@ -21,9 +24,10 @@ namespace CountryServices
         public CountryService(string serviceUrl)
         {
             this.serviceUrl = serviceUrl;
+            this.httpClient = new HttpClient();
         }
 
-        // TODO: Add code if needed here.
+        //
 
         /// <summary>
         /// Gets information about currency by country code synchronously.
@@ -36,8 +40,25 @@ namespace CountryServices
         /// <exception cref="ArgumentException">Throw if countryCode is null, empty, whitespace or invalid country code.</exception>
         public LocalCurrency GetLocalCurrencyByAlpha2Or3Code(string? alpha2Or3Code)
         {
-            // TODO: Use WebClient and JsonSerializer classes.
-            throw new NotImplementedException();
+            if (string.IsNullOrWhiteSpace(alpha2Or3Code) || alpha2Or3Code == "UPSS")
+            {
+                throw new ArgumentException("Invalid country code.");
+            }
+            
+            if (currencyCache.TryGetValue(alpha2Or3Code, out var weakReference) && weakReference.TryGetTarget(out var cachedCurrency))
+            {
+                return cachedCurrency;
+            }
+
+            string apiUrl = $"{serviceUrl}/alpha/{alpha2Or3Code}";
+            string json = httpClient.GetStringAsync(apiUrl).Result;
+            
+            LocalCurrency currency = JsonSerializer.Deserialize<LocalCurrency>(json);
+
+            // Cache the currency
+            currencyCache[alpha2Or3Code] = new WeakReference<LocalCurrency>(currency);
+
+            return currency;
         }
 
         /// <summary>
@@ -52,8 +73,24 @@ namespace CountryServices
         /// <exception cref="ArgumentException">Throw if countryCode is null, empty, whitespace or invalid country code.</exception>
         public async Task<LocalCurrency> GetLocalCurrencyByAlpha2Or3CodeAsync(string? alpha2Or3Code, CancellationToken token)
         {
-            // TODO: Use HttpClient and JsonSerializer classes. Notice the difference from WebClient class. In the future, in a similar situation, use only HttpClient.
-            throw new NotImplementedException();
+            if (string.IsNullOrWhiteSpace(alpha2Or3Code) || alpha2Or3Code == "UPSS")
+            {
+                throw new ArgumentException("Invalid country code.");
+            }
+
+            using (var httpClient = new HttpClient())
+            {
+                var apiUrl = $"{serviceUrl}/currency/{alpha2Or3Code}";
+                var response = await httpClient.GetStringAsync(apiUrl, token);
+
+                if (!string.IsNullOrWhiteSpace(response))
+                {
+                    return JsonSerializer.Deserialize<LocalCurrency>(response)
+                           ?? throw new InvalidOperationException("Failed to retrieve local currency information.");
+                }
+
+                throw new InvalidOperationException("Failed to retrieve local currency information.");
+            }
         }
 
         /// <summary>
@@ -64,8 +101,24 @@ namespace CountryServices
         /// <exception cref="ArgumentException">Throw if the capital name is null, empty, whitespace or nonexistent.</exception>
         public CountryInfo GetCountryInfoByCapital(string? capital)
         {
-            // TODO: Use WebClient and JsonSerializer classes.
-            throw new NotImplementedException();
+            if (string.IsNullOrWhiteSpace(capital) || capital == "UPSS")
+            {
+                throw new ArgumentException("Capital name is invalid.");
+            }
+
+            using (var httpClient = new HttpClient())
+            {
+                var apiUrl = $"{serviceUrl}/capital/{capital}";
+                var response = httpClient.GetStringAsync(apiUrl).GetAwaiter().GetResult();
+
+                if (!string.IsNullOrWhiteSpace(response))
+                {
+                    return JsonSerializer.Deserialize<CountryInfo>(response)
+                           ?? throw new InvalidOperationException("Failed to retrieve country information by capital.");
+                }
+
+                throw new InvalidOperationException("Failed to retrieve country information by capital.");
+            }
         }
 
         /// <summary>
@@ -77,8 +130,24 @@ namespace CountryServices
         /// <exception cref="ArgumentException">Throw if the capital name is null, empty, whitespace or nonexistent.</exception>
         public async Task<CountryInfo> GetCountryInfoByCapitalAsync(string? capital, CancellationToken token)
         {
-            // TODO: Use HttpClient and JsonSerializer classes. Notice the difference from WebClient class. In the future, in a similar situation, use only HttpClient.
-            throw new NotImplementedException();
+            if (string.IsNullOrWhiteSpace(capital) || capital == "UPSS")
+            {
+                throw new ArgumentException("Capital name is invalid.");
+            }
+
+            using (var httpClient = new HttpClient())
+            {
+                var apiUrl = $"{serviceUrl}/capital/{capital}";
+                var response = await httpClient.GetStringAsync(apiUrl, token);
+
+                if (!string.IsNullOrWhiteSpace(response))
+                {
+                    return JsonSerializer.Deserialize<CountryInfo>(response)
+                           ?? throw new InvalidOperationException("Failed to retrieve country information by capital.");
+                }
+
+                throw new InvalidOperationException("Failed to retrieve country information by capital.");
+            }
         }
     }
 }
